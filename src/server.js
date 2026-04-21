@@ -4,7 +4,7 @@ const express = require("express");
 const path = require("path");
 const { createAuth } = require("./auth");
 
-function createApp({ store, config }) {
+function createApp({ store, config, nocoDb }) {
   const app = express();
   const auth = createAuth({ store, config });
 
@@ -28,6 +28,22 @@ function createApp({ store, config }) {
 
   app.get("/dashboard", withAuth(auth), (_req, res) => {
     res.sendFile(path.join(__dirname, "..", "public", "dashboard.html"));
+  });
+
+  app.get("/integrations/nocodb", withAuth(auth), (_req, res) => {
+    res.json(nocoDb.getConfig());
+  });
+
+  app.put("/integrations/nocodb", withAuth(auth), (req, res) => {
+    res.json(nocoDb.saveConfig(req.body || {}));
+  });
+
+  app.post("/integrations/nocodb/test", withAuth(auth), async (req, res, next) => {
+    try {
+      res.json(await nocoDb.testConnection(req.body || null));
+    } catch (error) {
+      next(error);
+    }
   });
 
   app.use("/jobs", withAuth(auth));
@@ -58,7 +74,17 @@ function createApp({ store, config }) {
     if (!job) return res.status(404).json({ error: "Job not found." });
     return res.json({
       job,
-      stats: { leadCount: store.countJobLeads(job.id) },
+      stats: store.getJobStats(job.id),
+      links: buildLinks(req, config, job.id),
+    });
+  });
+
+  app.get("/jobs/:jobId/stats", (req, res) => {
+    const job = store.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: "Job not found." });
+    return res.json({
+      job,
+      stats: store.getJobStats(job.id),
       links: buildLinks(req, config, job.id),
     });
   });
@@ -75,6 +101,22 @@ function createApp({ store, config }) {
       total: store.countJobLeads(job.id),
       leads: store.getJobLeads(job.id, { limit, offset }),
     });
+  });
+
+  app.get("/jobs/:jobId/sync/nocodb", (req, res) => {
+    const job = store.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: "Job not found." });
+    return res.json(nocoDb.getJobSyncStatus(job.id));
+  });
+
+  app.post("/jobs/:jobId/sync/nocodb", async (req, res, next) => {
+    const job = store.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: "Job not found." });
+    try {
+      return res.json(await nocoDb.syncJob(job.id, { force: Boolean(req.body?.force) }));
+    } catch (error) {
+      return next(error);
+    }
   });
 
   app.delete("/jobs/:jobId", (req, res) => {
@@ -108,10 +150,12 @@ function buildLinks(req, config, jobId) {
   return {
     self: `${base}/jobs/${jobId}`,
     dashboard: `${base}/dashboard?jobId=${jobId}`,
+    stats: `${base}/jobs/${jobId}/stats`,
     leads: `${base}/jobs/${jobId}/leads`,
     csv: `${base}/jobs/${jobId}/download?format=csv`,
     json: `${base}/jobs/${jobId}/download?format=json`,
     delete: `${base}/jobs/${jobId}`,
+    nocodbSync: `${base}/jobs/${jobId}/sync/nocodb`,
   };
 }
 

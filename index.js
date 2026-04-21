@@ -5,13 +5,15 @@ const appConfig = require("./src/app-config");
 const { createStore } = require("./src/store");
 const { createWorker } = require("./src/worker");
 const { createApp } = require("./src/server");
+const { createNocoDbService } = require("./src/nocodb");
 
 fs.mkdirSync(appConfig.dataDir, { recursive: true });
 fs.mkdirSync(appConfig.exportsDir, { recursive: true });
 
 const store = createStore(appConfig);
-const worker = createWorker({ store, config: appConfig });
-const app = createApp({ store, config: appConfig });
+const nocoDb = createNocoDbService({ store, config: appConfig });
+const worker = createWorker({ store, config: appConfig, nocoDb });
+const app = createApp({ store, config: appConfig, nocoDb });
 
 const server = app.listen(appConfig.port, appConfig.host, () => {
   worker

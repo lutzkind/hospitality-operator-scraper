@@ -2,7 +2,7 @@
 
 const { runScrape } = require("./runner");
 
-function createWorker({ store, config }) {
+function createWorker({ store, config, nocoDb }) {
   let timer = null;
   let busy = false;
 
@@ -35,6 +35,7 @@ function createWorker({ store, config }) {
           logger: console,
         });
         store.completeJob(job.id, summary);
+        await nocoDb.syncCompletedJobIfEnabled(job.id);
       } catch (error) {
         store.failJob(job.id, error.message);
       } finally {
