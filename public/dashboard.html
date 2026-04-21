@@ -38,6 +38,20 @@
       h1, h2, h3 { margin: 0 0 12px; }
       .subtle { color: var(--muted); font-size: 14px; }
       form { display: grid; gap: 10px; }
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+      .field-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .field-help {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
       input, select, textarea, button {
         width: 100%;
         border-radius: 10px;
@@ -96,6 +110,24 @@
       .message { margin-top: 10px; font-size: 14px; color: var(--muted); }
       .error { color: var(--bad); }
       .empty { color: var(--muted); padding: 18px 0; }
+      .section-note {
+        margin: -4px 0 12px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .explain {
+        border: 1px solid #233043;
+        background: #0f172a;
+        border-radius: 12px;
+        padding: 12px;
+        margin-top: 12px;
+      }
+      .explain strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+      }
       @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .sidebar { border-right: 0; border-bottom: 1px solid var(--panel-border); } }
     </style>
   </head>
@@ -107,6 +139,10 @@
             <div>
               <h1>Hospitality operator scraper</h1>
               <p class="subtle">Operator-first discovery for hotel groups, restaurant groups, and multi-property hospitality companies.</p>
+              <div class="explain">
+                <strong>What this does</strong>
+                This app searches the web for hospitality operators, crawls their official sites, extracts portfolio and leadership signals, and saves a ranked lead list. The UI only creates and monitors jobs; the scraping runs on the server in the background.
+              </div>
             </div>
             <div>
               <div id="auth-username" class="subtle"></div>
@@ -117,11 +153,28 @@
 
         <div class="panel">
           <h2>Create job</h2>
+          <p class="section-note">Use this form to start a new scrape run. Smaller runs are easier to validate first; once the quality looks right, increase the domain limit.</p>
           <form id="job-form">
-            <input id="countries" value="us,ca,gb,ie,au,nz,za,sg,mt" placeholder="Countries: us,gb,au">
-            <input id="limitPerQuery" type="number" min="1" value="8" placeholder="Limit per query">
-            <input id="maxDomains" type="number" min="1" value="250" placeholder="Max domains">
-            <input id="concurrency" type="number" min="1" value="3" placeholder="Concurrency">
+            <label class="field">
+              <span class="field-label">Countries</span>
+              <input id="countries" value="us,ca,gb,ie,au,nz,za,sg,mt" placeholder="Countries: us,gb,au">
+              <span class="field-help">Comma-separated country codes. Each country adds its own discovery queries. Example: <code>us,ca,gb</code>.</span>
+            </label>
+            <label class="field">
+              <span class="field-label">Limit Per Query</span>
+              <input id="limitPerQuery" type="number" min="1" value="8" placeholder="Limit per query">
+              <span class="field-help">How many search results to keep from each discovery query before the crawler starts checking domains. Lower is faster; higher is broader.</span>
+            </label>
+            <label class="field">
+              <span class="field-label">Max Domains</span>
+              <input id="maxDomains" type="number" min="1" value="250" placeholder="Max domains">
+              <span class="field-help">Hard cap on company domains the scraper will crawl for this run. This is the main control for job size and runtime.</span>
+            </label>
+            <label class="field">
+              <span class="field-label">Concurrency</span>
+              <input id="concurrency" type="number" min="1" value="3" placeholder="Concurrency">
+              <span class="field-help">How many domains to process in parallel. Higher values finish faster but create more load and can make debugging harder.</span>
+            </label>
             <button type="submit">Create job</button>
           </form>
           <div id="job-form-message" class="message"></div>
@@ -132,6 +185,7 @@
             <h2>Jobs</h2>
             <button id="refresh-jobs" class="secondary" type="button">Refresh</button>
           </div>
+          <p class="section-note">Each card is one scrape run. Click a job to see its output. Status meanings: <code>pending</code> = queued, <code>running</code> = scraping now, <code>completed</code> = ready to export, <code>failed</code> = the run stopped with an error.</p>
           <div id="job-list" class="job-list"></div>
         </div>
       </aside>
@@ -139,7 +193,7 @@
       <main class="main">
         <div class="panel">
           <h2 id="job-title">Select a job</h2>
-          <p id="job-summary" class="subtle">Job details and lead previews will appear here.</p>
+          <p id="job-summary" class="subtle">Select a job from the left to inspect its results, exports, and lead preview.</p>
         </div>
 
         <div id="job-detail" style="display:none;">
@@ -151,6 +205,7 @@
           </div>
 
           <div class="panel">
+            <p class="section-note">Export the final dataset once a job completes. CSV is best for spreadsheets and manual review. JSON keeps the raw structured payload for downstream automation.</p>
             <div class="toolbar">
               <a id="download-csv" href="#" target="_blank"><button type="button">Download CSV</button></a>
               <a id="download-json" href="#" target="_blank"><button type="button" class="secondary">Download JSON</button></a>
@@ -161,6 +216,7 @@
 
           <div class="panel">
             <h3>Lead preview</h3>
+            <p class="section-note">This table shows the first saved leads for the selected job. It is a preview, not necessarily the full export.</p>
             <div id="lead-table-wrap" class="table-wrap"></div>
           </div>
         </div>
