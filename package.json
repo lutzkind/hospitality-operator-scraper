@@ -1,0 +1,16 @@
+{
+  "name": "hospitality-operator-scraper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Discover multi-property hospitality operators and decision-maker leads across English-speaking countries.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node index.js",
+    "cli": "node src/index.js",
+    "sample": "node src/index.js --countries us,gb --limit-per-query 3 --max-domains 12"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

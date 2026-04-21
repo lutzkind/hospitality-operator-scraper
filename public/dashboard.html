@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hospitality Operator Scraper Dashboard</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #081018;
+        --panel: #111827;
+        --panel-2: #0f172a;
+        --border: #1f2937;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --accent: #14b8a6;
+        --good: #34d399;
+        --warn: #fbbf24;
+        --bad: #f87171;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, sans-serif;
+        background: linear-gradient(180deg, #0a1622, #081018 30%);
+        color: var(--text);
+      }
+      .layout { display: grid; grid-template-columns: 400px 1fr; min-height: 100vh; }
+      .sidebar, .main { padding: 20px; }
+      .sidebar { background: rgba(8, 16, 24, 0.95); border-right: 1px solid var(--border); }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      h1, h2, h3 { margin: 0 0 12px; }
+      .subtle { color: var(--muted); font-size: 14px; }
+      .grid { display: grid; gap: 10px; }
+      input, textarea, button {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid #334155;
+        background: var(--panel-2);
+        color: var(--text);
+        padding: 10px 12px;
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #052f2d;
+        font-weight: 700;
+      }
+      button.secondary {
+        background: transparent;
+        border-color: #475569;
+        color: var(--text);
+      }
+      .job-card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+        background: var(--panel-2);
+        cursor: pointer;
+      }
+      .job-card.active { border-color: var(--accent); }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .badge.pending { background: #cbd5e1; color: #111827; }
+      .badge.running { background: #67e8f9; color: #083344; }
+      .badge.completed { background: var(--good); color: #052e16; }
+      .badge.failed { background: var(--bad); color: #450a0a; }
+      .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+      .toolbar > * { width: auto; }
+      .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+      .stat { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: var(--panel-2); }
+      .label { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+      .value { margin-top: 8px; font-size: 24px; font-weight: 700; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+      th { color: var(--muted); }
+      a { color: #67e8f9; }
+      .empty { color: var(--muted); padding: 18px 0; }
+      @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .sidebar { border-right: 0; border-bottom: 1px solid var(--border); } }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:start;">
+            <div>
+              <h1>Hospitality scraper</h1>
+              <p class="subtle">Operator-first discovery for hotel groups, restaurant groups, and multi-property hospitality companies.</p>
+            </div>
+            <div>
+              <div id="auth-username" class="subtle"></div>
+              <button id="logout-button" class="secondary" type="button">Logout</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Create job</h2>
+          <form id="job-form" class="grid">
+            <input id="countries" value="us,ca,gb,ie,au,nz,za,sg,mt" placeholder="Countries: us,gb,au">
+            <input id="limitPerQuery" type="number" min="1" value="8" placeholder="Limit per query">
+            <input id="maxDomains" type="number" min="1" value="250" placeholder="Max domains">
+            <input id="concurrency" type="number" min="1" value="3" placeholder="Concurrency">
+            <button type="submit">Create job</button>
+          </form>
+          <div id="job-form-message" class="subtle" style="margin-top:10px;"></div>
+        </div>
+
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+            <h2>Jobs</h2>
+            <button id="refresh-jobs" class="secondary" type="button">Refresh</button>
+          </div>
+          <div id="job-list" class="grid"></div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="panel">
+          <h2 id="job-title">Select a job</h2>
+          <p id="job-summary" class="subtle">Job details and lead previews will appear here.</p>
+        </div>
+
+        <div id="job-detail" style="display:none;">
+          <div class="stats-grid">
+            <div class="stat"><div class="label">Status</div><div id="stat-status" class="value">-</div></div>
+            <div class="stat"><div class="label">Countries</div><div id="stat-countries" class="value">-</div></div>
+            <div class="stat"><div class="label">Lead count</div><div id="stat-leads" class="value">-</div></div>
+            <div class="stat"><div class="label">Created</div><div id="stat-created" class="value" style="font-size:16px;">-</div></div>
+          </div>
+
+          <div class="panel">
+            <div class="toolbar">
+              <a id="download-csv" href="#" target="_blank"><button type="button">Download CSV</button></a>
+              <a id="download-json" href="#" target="_blank"><button type="button" class="secondary">Download JSON</button></a>
+              <button id="delete-job" type="button" class="secondary">Delete job</button>
+            </div>
+            <div id="job-links" class="subtle"></div>
+          </div>
+
+          <div class="panel">
+            <h3>Lead preview</h3>
+            <div id="lead-table-wrap"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script>
+      let jobs = [];
+      let activeJobId = null;
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+          ...options,
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || `Request failed: ${response.status}`);
+        return body;
+      }
+
+      async function boot() {
+        try {
+          const session = await api("/api/auth/session");
+          document.getElementById("auth-username").textContent = session.username;
+          await refreshJobs();
+        } catch (_error) {
+          window.location.href = "/login";
+        }
+      }
+
+      async function refreshJobs() {
+        const { jobs: nextJobs } = await api("/jobs");
+        jobs = nextJobs;
+        renderJobs();
+        if (activeJobId) await loadJob(activeJobId);
+      }
+
+      function renderJobs() {
+        const list = document.getElementById("job-list");
+        if (!jobs.length) {
+          list.innerHTML = '<div class="empty">No jobs yet.</div>';
+          return;
+        }
+        list.innerHTML = jobs.map((job) => `
+          <div class="job-card ${job.id === activeJobId ? "active" : ""}" data-job-id="${job.id}">
+            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+              <strong>${escapeHtml((job.countries || []).join(", ").toUpperCase())}</strong>
+              <span class="badge ${job.status}">${job.status}</span>
+            </div>
+            <div class="subtle" style="margin-top:6px;">Created ${escapeHtml(new Date(job.createdAt).toLocaleString())}</div>
+            <div class="subtle">limit/query=${escapeHtml(job.limitPerQuery ?? "-")} domains=${escapeHtml(job.maxDomains ?? "-")}</div>
+          </div>
+        `).join("");
+        list.querySelectorAll(".job-card").forEach((node) => {
+          node.addEventListener("click", () => {
+            activeJobId = node.dataset.jobId;
+            renderJobs();
+            loadJob(activeJobId);
+          });
+        });
+      }
+
+      async function loadJob(jobId) {
+        const payload = await api(`/jobs/${jobId}`);
+        const leadsPayload = await api(`/jobs/${jobId}/leads?limit=50`);
+        const { job, stats, links } = payload;
+        document.getElementById("job-detail").style.display = "block";
+        document.getElementById("job-title").textContent = `Job ${job.id}`;
+        document.getElementById("job-summary").textContent = job.summary?.outputDir || job.error || "Pending or running.";
+        document.getElementById("stat-status").textContent = job.status;
+        document.getElementById("stat-countries").textContent = (job.countries || []).join(", ").toUpperCase();
+        document.getElementById("stat-leads").textContent = String(stats.leadCount || 0);
+        document.getElementById("stat-created").textContent = new Date(job.createdAt).toLocaleString();
+        document.getElementById("download-csv").href = links.csv;
+        document.getElementById("download-json").href = links.json;
+        document.getElementById("job-links").innerHTML = `CSV: <a href="${links.csv}" target="_blank">${links.csv}</a><br>JSON: <a href="${links.json}" target="_blank">${links.json}</a>`;
+        renderLeads(leadsPayload.leads || []);
+      }
+
+      function renderLeads(leads) {
+        const wrap = document.getElementById("lead-table-wrap");
+        if (!leads.length) {
+          wrap.innerHTML = '<div class="empty">No leads available yet.</div>';
+          return;
+        }
+        wrap.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>Score</th>
+                <th>Company</th>
+                <th>Domain</th>
+                <th>Sectors</th>
+                <th>Executives</th>
+                <th>Summary</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${leads.map((lead) => `
+                <tr>
+                  <td>${escapeHtml(lead.score)}</td>
+                  <td>${escapeHtml(lead.companyName)}</td>
+                  <td><a href="${escapeHtml(lead.homepage)}" target="_blank">${escapeHtml(lead.domain)}</a></td>
+                  <td>${escapeHtml((lead.sectors || []).join(", "))}</td>
+                  <td>${escapeHtml((lead.executives || []).slice(0, 3).join(" | "))}</td>
+                  <td>${escapeHtml(lead.summary || "")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      document.getElementById("job-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = document.getElementById("job-form-message");
+        message.textContent = "";
+        try {
+          const payload = {
+            countries: document.getElementById("countries").value,
+            limitPerQuery: document.getElementById("limitPerQuery").value,
+            maxDomains: document.getElementById("maxDomains").value,
+            concurrency: document.getElementById("concurrency").value,
+          };
+          const { job } = await api("/jobs", { method: "POST", body: JSON.stringify(payload) });
+          message.textContent = `Created job ${job.id}.`;
+          activeJobId = job.id;
+          await refreshJobs();
+        } catch (error) {
+          message.textContent = error.message;
+        }
+      });
+
+      document.getElementById("refresh-jobs").addEventListener("click", refreshJobs);
+      document.getElementById("logout-button").addEventListener("click", async () => {
+        await api("/api/auth/logout", { method: "POST", body: JSON.stringify({}) });
+        window.location.href = "/login";
+      });
+      document.getElementById("delete-job").addEventListener("click", async () => {
+        if (!activeJobId) return;
+        await api(`/jobs/${activeJobId}`, { method: "DELETE" });
+        activeJobId = null;
+        document.getElementById("job-detail").style.display = "none";
+        await refreshJobs();
+      });
+
+      setInterval(() => {
+        if (document.visibilityState === "visible") refreshJobs().catch(() => {});
+      }, 10000);
+
+      boot();
+    </script>
+  </body>
+</html>

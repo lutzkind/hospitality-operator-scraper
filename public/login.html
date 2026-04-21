@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hospitality Operator Scraper Login</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1220;
+        --panel: #111827;
+        --border: #1f2937;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --accent: #14b8a6;
+        --error: #f87171;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at top, #12324a, #09111c 55%);
+        color: var(--text);
+        font-family: Inter, system-ui, sans-serif;
+      }
+      .card {
+        width: min(420px, calc(100vw - 32px));
+        background: rgba(17, 24, 39, 0.95);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 24px;
+      }
+      h1 { margin: 0 0 8px; }
+      p { margin: 0 0 18px; color: var(--muted); }
+      form { display: grid; gap: 12px; }
+      input, button {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid #334155;
+        background: #0f172a;
+        color: var(--text);
+        padding: 12px;
+        font: inherit;
+      }
+      button {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #052f2d;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .error { margin-top: 12px; color: var(--error); min-height: 20px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Hospitality operator scraper</h1>
+      <p>Sign in to manage discovery jobs and download ranked operator leads.</p>
+      <form id="login-form">
+        <input id="username" name="username" placeholder="Username" autocomplete="username" required>
+        <input id="password" name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+        <button type="submit">Login</button>
+      </form>
+      <div id="error" class="error"></div>
+    </div>
+    <script>
+      const form = document.getElementById("login-form");
+      const errorEl = document.getElementById("error");
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        errorEl.textContent = "";
+        const payload = {
+          username: document.getElementById("username").value,
+          password: document.getElementById("password").value,
+        };
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          errorEl.textContent = body.error || "Login failed.";
+          return;
+        }
+        window.location.href = "/dashboard";
+      });
+    </script>
+  </body>
+</html>
